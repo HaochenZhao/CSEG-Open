@@ -1,0 +1,102 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Table 2 ablation — GRPO from base, Qwen3-8B, natural-rollout split.
+# Same warning as the 4B twin: do not hardcode data.train_files in the launcher.
+#
+#   * data      -> ./data/rl_{train,val}_baseline_qwen3_8b_rollout.jsonl
+#   * ckpts     -> ./ckpts/grpo_qwen3_8b_rollout
+#   * init      -> Qwen/Qwen3-8B
+#
+#   cd training && bash scripts/launch_grpo.sh grpo_qwen3_8b_rollout
+# ─────────────────────────────────────────────────────────────────────────────
+defaults:
+  - ppo_trainer
+  - _self_
+
+hydra:
+  searchpath:
+    - pkg://verl.trainer.config
+
+algorithm:
+  adv_estimator: grpo
+  # KL is applied as a loss to the reference (below), not as an in-reward penalty.
+  use_kl_in_reward: false
+  kl_ctrl:
+    kl_coef: 0.001
+
+data:
+  # RLHFDataset accepts .jsonl (datasets.load_dataset("json")).
+  train_files: ./data/rl_train_baseline_qwen3_8b_rollout.jsonl
+  val_files: ./data/rl_val_baseline_qwen3_8b_rollout.jsonl
+  prompt_key: prompt
+  # per-sample reward routing key (= layer id) -> our reward reads extra_info.layer_id.
+  reward_fn_key: data_source
+  train_batch_size: 64
+  # 20480-token prompt budget + 128 headroom.
+  # The rollout train split tops out at 20477 chat-template tokens, so
+  # filter_overlong_prompts drops nothing.
+  max_prompt_length: 20608
+  max_response_length: 1024
+  filter_overlong_prompts: true
+  truncation: right
+  shuffle: true
+
+actor_rollout_ref:
+  model:
+    # RL-from-base: raw weights, not the SFT checkpoint.
+    path: Qwen/Qwen3-8B
+    use_remove_padding: true
+    enable_gradient_checkpointing: true
+  actor:
+    strategy: fsdp2
+    optim:
+      lr: 1.0e-6
+    ppo_mini_batch_size: 64
+    ppo_micro_batch_size_per_gpu: 1
+    use_dynamic_bsz: true
+    # >= max_prompt_length + max_response_length (21632) so one full sequence fits a
+    # micro-batch. Left at 28672 to match the measured baseline: the fwd/bwd already runs
+    # near H20's BF16 peak, so packing more tokens per micro-batch buys little and costs
+    # logits memory (28672 x 151936 bf16 ~ 8.7 GiB per copy).
+    ppo_max_token_len_per_gpu: 28672
+    # GRPO: KL as a loss toward the frozen reference, to limit policy collapse.
+    use_kl_loss: true
+    kl_loss_coef: 0.001
+    kl_loss_type: low_var_kl
+    entropy_coeff: 0
+    fsdp_config:
+      param_offload: false
+      optimizer_offload: false
+  rollout:
+    name: vllm
+    # G in GRPO: responses sampled per prompt.
+    n: 8
+    temperature: 1.0
+    # 0.6 rather than the 4B's 0.5 — see the sizing note in the header.
+    gpu_memory_utilization: 0.6
+    tensor_model_parallel_size: 1
+    max_num_batched_tokens: 28672
+    mode: async
+
+reward:
+  custom_reward_function:
+    path: ./rewards/layer_reward.py
+    name: compute_score
+
+trainer:
+  project_name: search-rm
+  experiment_name: grpo_qwen3_8b_rollout
+  default_local_dir: ./ckpts/grpo_qwen3_8b_rollout
+  logger: [console, tensorboard]
+  n_gpus_per_node: 8
+  nnodes: 4
+  # 7320 prompts / train_batch_size 64 = 114 steps/epoch (drop_last), so 4 epochs make
+  # 456 steps available and total_training_steps caps the run at exactly 400. verl
+  # honours trainer.total_training_steps over the epoch-derived count and feeds it to
+  # the LR scheduler's horizon.
+  total_epochs: 4
+  total_training_steps: 400
+  save_freq: 25
+  # Same cadence and step-0 baseline as the other ablation runs so the validation curves are
+  # directly comparable.
+  test_freq: 25
+  val_before_train: true

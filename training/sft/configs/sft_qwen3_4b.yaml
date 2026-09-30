@@ -1,0 +1,79 @@
+# 32B rejection-SFT baseline, Qwen3-4B.
+# Thinking-on: assistant content already contains <think>…</think> + full JSON.
+# Prompt is the unrewritten full layer template (same as frontier eval).
+#
+#   cd training/sft && bash scripts/launch_sft.sh sft_qwen3_4b
+defaults:
+  - sft_trainer_engine
+  - _self_
+
+hydra:
+  searchpath:
+    - pkg://verl.trainer.config
+
+data:
+  train_files: ./data/sft_train.parquet
+  val_files: ./data/sft_dev.parquet
+  messages_key: messages
+  max_length: 24576
+  truncation: right
+  train_batch_size: 64
+  micro_batch_size_per_gpu: 1
+  use_dynamic_bsz: true
+  # 24576 = 20480 prompt budget + 4096 assistant (think + full JSON).
+  max_token_len_per_gpu: 24576
+  pad_mode: no_padding
+  # Thinking-on alignment: generation prefix is <|im_start|>assistant\n so the
+  # model opens <think> itself. The parquet assistant turn already includes the
+  # think block; do NOT strip it and do NOT prefill an empty think.
+  apply_chat_template_kwargs:
+    chat_template: |-
+      {%- if messages[0].role == 'system' %}
+          {{- '<|im_start|>system\n' + messages[0].content + '<|im_end|>\n' }}
+      {%- endif %}
+      {%- for message in messages %}
+          {%- if message.role == 'system' and not loop.first %}
+              {{- '<|im_start|>system\n' + message.content + '<|im_end|>\n' }}
+          {%- elif message.role == 'user' %}
+              {{- '<|im_start|>user\n' + message.content + '<|im_end|>\n' }}
+          {%- elif message.role == 'assistant' %}
+              {{- '<|im_start|>assistant\n' + message.content + '<|im_end|>\n' }}
+          {%- endif %}
+      {%- endfor %}
+      {%- if add_generation_prompt %}
+          {{- '<|im_start|>assistant\n' }}
+      {%- endif %}
+  ignore_input_ids_mismatch: false
+
+model:
+  path: Qwen/Qwen3-4B
+  enable_gradient_checkpointing: true
+  use_remove_padding: true
+
+engine:
+  strategy: fsdp2
+  ulysses_sequence_parallel_size: 1
+  param_offload: false
+  optimizer_offload: false
+
+optim:
+  lr: 1.0e-5
+  lr_scheduler_type: cosine
+  lr_warmup_steps_ratio: 0.03
+  weight_decay: 0.01
+  clip_grad: 1.0
+
+checkpoint:
+  save_contents: ["model", "optimizer", "extra"]
+
+trainer:
+  default_local_dir: ./ckpts/sft_qwen3_4b_32b_rs
+  project_name: search-rm
+  experiment_name: sft_qwen3_4b_32b_rs
+  total_epochs: 3
+  save_freq: after_each_epoch
+  test_freq: after_each_epoch
+  logger: [console, tensorboard]
+  n_gpus_per_node: 8
+  nnodes: 1
+  seed: 1

@@ -1,0 +1,112 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Main-table GRPO (Table 1), Qwen3-8B. Same knobs as sft_grpo_qwen3_4b.yaml
+# except model scale and rollout.gpu_memory_utilization (0.6 vs 0.5).
+#
+#   * init      -> ./sft/ckpts/sft_qwen3_8b_32b_rs/global_step_220/huggingface
+#   * data      -> ./data/rl_{train,val}.jsonl (7320 / 911)
+#   * ckpts     -> ./ckpts/sft_grpo_qwen3_8b
+#
+#   cd training && bash scripts/launch_grpo.sh sft_grpo_qwen3_8b
+# Paper hardware: 4 nodes × 8 GPUs. Disk: ~107 GiB × 16 saves ≈ 1.71 TiB.
+# ─────────────────────────────────────────────────────────────────────────────
+defaults:
+  - ppo_trainer
+  - _self_
+
+hydra:
+  searchpath:
+    - pkg://verl.trainer.config
+
+algorithm:
+  adv_estimator: grpo
+  # KL is applied as a loss to the reference (below), not as an in-reward penalty.
+  use_kl_in_reward: false
+  kl_ctrl:
+    kl_coef: 0.001
+
+data:
+  # RLHFDataset accepts .jsonl (datasets.load_dataset("json")).
+  train_files: ./data/rl_train.jsonl
+  val_files: ./data/rl_val.jsonl
+  prompt_key: prompt
+  # per-sample reward routing key (= layer id) -> our reward reads extra_info.layer_id.
+  reward_fn_key: data_source
+  train_batch_size: 64
+  # 20480-token prompt budget + 128 headroom.
+  # Qwen3-8B ships the same tokenizer and 151936 vocab as 4B, so the measured 20478-token
+  # ceiling on the CSEG-RM GRPO train split holds here too and filter_overlong_prompts drops
+  # nothing. Tightening this from 25600 shrinks vLLM's max_model_len from 26624 to 21632,
+  # which buys ~19% more KV cache per sequence at the same gpu_memory_utilization.
+  max_prompt_length: 20608
+  max_response_length: 1024
+  filter_overlong_prompts: true
+  truncation: right
+  shuffle: true
+
+actor_rollout_ref:
+  model:
+    # SFT cold-start. launch_grpo.sh re-roots this so Ray workers (CWD=/tmp) resolve it.
+    path: ./sft/ckpts/sft_qwen3_8b_32b_rs/global_step_220/huggingface
+    use_remove_padding: true
+    enable_gradient_checkpointing: true
+  actor:
+    strategy: fsdp2
+    optim:
+      lr: 1.0e-6
+    ppo_mini_batch_size: 64
+    ppo_micro_batch_size_per_gpu: 1
+    use_dynamic_bsz: true
+    # >= max_prompt_length + max_response_length (21632) so one full sequence fits a
+    # micro-batch. Left at 28672 to match the measured baseline: at ~110 TFLOPS effective
+    # the fwd/bwd already runs near H20's peak, so packing more tokens per micro-batch
+    # buys little and costs logits memory (28672 x 151936 bf16 ~ 8.7 GiB per copy).
+    ppo_max_token_len_per_gpu: 28672
+    # GRPO: KL as a loss toward the frozen reference, to limit policy collapse.
+    use_kl_loss: true
+    kl_loss_coef: 0.001
+    kl_loss_type: low_var_kl
+    entropy_coeff: 0
+    fsdp_config:
+      param_offload: false
+      optimizer_offload: false
+  rollout:
+    name: vllm
+    # G in GRPO: responses sampled per prompt.
+    n: 8
+    temperature: 1.0
+    # 8B weights take 15.3 GiB of vLLM's budget vs 7.5 GiB for 4B; at 0.5 the KV cache
+    # would drop to ~28 GiB. 0.6 restores it to ~39 GiB and still leaves >20 GiB of
+    # headroom on a 95.58 GiB card. This is the one knob that legitimately differs from
+    # the 4B config, because it compensates for model size rather than changing the
+    # learning setup.
+    gpu_memory_utilization: 0.6
+    tensor_model_parallel_size: 1
+    max_num_batched_tokens: 28672
+    mode: async
+
+reward:
+  custom_reward_function:
+    path: ./rewards/layer_reward.py
+    name: compute_score
+    # optional overrides merged into compute_score:
+    # reward_kwargs: { correct_reward: 1.0, incorrect_reward: 0.0, format_penalty: -1.0 }
+
+trainer:
+  project_name: search-rm
+  experiment_name: sft_grpo_qwen3_8b
+  default_local_dir: ./ckpts/sft_grpo_qwen3_8b
+  logger: [console, tensorboard]
+  n_gpus_per_node: 8
+  # Paper setting: 4 nodes. Override trainer.nnodes if your cluster differs.
+  nnodes: 4
+  # 7320 prompts / train_batch_size 64 = 114 steps/epoch (drop_last), so 4 epochs make
+  # 456 steps available and total_training_steps caps the run at exactly 400. verl
+  # honours trainer.total_training_steps over the epoch-derived count and feeds it to
+  # the LR scheduler's horizon.
+  total_epochs: 4
+  total_training_steps: 400
+  # 16 retained checkpoints x ~107 GiB = ~1.71 TiB.
+  # max_actor_ckpt_to_keep: 6
+  save_freq: 25
+  test_freq: 25
+  val_before_train: true

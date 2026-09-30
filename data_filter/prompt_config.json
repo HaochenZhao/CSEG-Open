@@ -1,0 +1,119 @@
+{
+  "version": "1.0",
+  "description": "Search agent trajectory evaluation framework for cross-source information integration capability. Six-layer hierarchical evaluation: each layer is a binary gate; the label assigned to a data point is the layer number where evaluation stops (the layer that failed, or L6 if all layers pass).",
+  "input_variables": {
+    "user_question": "The user original question/query",
+    "retrieved_sources": "Formatted list of retrieved web documents, including source URL, site, authority level, publish time, and content excerpt",
+    "final_answer": "The agent final answer text (excluding tool call sections)",
+    "agent_search_queries": "The search queries issued by the agent"
+  },
+  "layers": [
+    {
+      "id": "L1",
+      "label": 1,
+      "name": "Citation Support",
+      "description": "Does each core claim in the final answer have direct, relevant citation support from retrieved sources?",
+      "type": "binary",
+      "prompt_template": "You are an expert information quality evaluator assessing search agent trajectories.\n\n## Task\nDetermine whether each CORE factual claim in the agent's final answer is CITED — i.e. it carries an inline citation to a retrieved document, rather than being an uncited bare assertion from the model's own knowledge.\n\n## What this layer DOES check\n- The core claim(s) carry an inline citation marker (e.g. [citation:N]).\n- The cited document number N actually exists in the retrieved documents.\n- The cited document is topically relevant to the claim — it is about the same entity/event/fact — rather than an unrelated document.\n\n## What this layer does NOT check (do NOT fail for these — later layers handle them)\n- Whether the source FULLY proves an over-generalized, aggregated, or inferred claim — scope/qualifier fidelity is assessed at L5, not here.\n- Whether two or more independent sources are used (L2/L3), whether conflicts are handled (L4), or whether adjudication is sound (L6).\nIf the core claim is attached to an existing, on-topic citation, it PASSES this layer EVEN IF the claim over-claims, infers beyond the source, or distorts scope — those defects are caught downstream, not at L1.\n\n## Pass Criteria (ALL must hold)\n- The final answer contains at least one core factual claim.\n- That claim carries an inline citation to at least one retrieved document that actually exists.\n- The cited document is topically relevant to the claim (same subject matter).\n\n## Fail Criteria (ANY is sufficient)\n- The core claim is a bare assertion with NO citation, relying purely on the model's internal/world knowledge.\n- The citation points to a document number that does not exist in the retrieved list.\n- The cited document is clearly off-topic / unrelated to the claim (a citation in name only).\n\n## Input\n\n### User Question\n{user_question}\n\n### Retrieved Source Documents\n{retrieved_sources}\n\n### Agent Final Answer\n{final_answer}\n\n## Output Format\nIMPORTANT: Commit to your verdict before writing the reason. The `verdict` field must appear first in the JSON. Write `reason` as a concise post-verdict explanation (1-3 sentences), not as a chain of reasoning that leads to the verdict.\nRespond with ONLY the following JSON object, no additional text:\n```json\n{{\n  \"verdict\": \"pass\" or \"fail\",\n  \"reason\": \"Brief explanation of your judgment (1-3 sentences)\",\n  \"key_claims\": [\"List 1-3 core factual claims identified in the final answer\"],\n  \"citation_check\": \"For each core claim: is it cited, does the cited document exist, and is it topically relevant? Do NOT judge scope/over-claim/inference here (that is L5).\"\n}}\n```",
+      "routing": {
+        "pass": "L2",
+        "fail": "STOP"
+      }
+    },
+    {
+      "id": "L2",
+      "label": 2,
+      "name": "Multi-source Support",
+      "description": "Does the agent cite at least two distinct sources supporting the core claim(s), rather than relying on a single source?",
+      "type": "binary",
+      "prompt_template": "You are an expert information quality evaluator assessing search agent trajectories.\n\n## Task\nDetermine whether the agent's final answer draws on multiple (>=2) distinct sources to support its core claim(s), rather than relying on a single source.\n\n## Pass Criteria (ALL must hold)\n- The final answer explicitly references or clearly relies on at least 2 different sources.\n- Each of these sources contributes supporting content for the core claim.\n\n## Fail Criteria (ANY is sufficient)\n- Only one source is cited or relied upon in the final answer.\n- Multiple documents were retrieved, but the final answer depends on only one of them.\n- Multiple sources are cited but only one is actually relevant to the core claim.\n\nNOTE: At this layer, only assess whether the count of supporting sources is >=2. Source independence is assessed at L3.\n\n## Input\n\n### User Question\n{user_question}\n\n### Retrieved Source Documents\n{retrieved_sources}\n\n### Agent Final Answer\n{final_answer}\n\n## Output Format\nIMPORTANT: Commit to your verdict before writing the reason. The `verdict` field must appear first in the JSON. Write `reason` as a concise post-verdict explanation (1-3 sentences), not as a chain of reasoning that leads to the verdict.\nRespond with ONLY the following JSON object, no additional text:\n```json\n{{\n  \"verdict\": \"pass\" or \"fail\",\n  \"reason\": \"Brief explanation of your judgment (1-3 sentences)\",\n  \"cited_sources_count\": <integer count of effectively cited sources>,\n  \"cited_sources_summary\": \"Names or identifiers of the cited sources\"\n}}\n```",
+      "routing": {
+        "pass": "L3",
+        "fail": "STOP"
+      }
+    },
+    {
+      "id": "L3",
+      "label": 3,
+      "name": "Source Independence",
+      "description": "Are the cited sources genuinely independent, or do they all trace back to the same original source (reposts, syndications, same-org content)?",
+      "type": "binary",
+      "prompt_template": "You are an expert information quality evaluator assessing search agent trajectories.\n\n## Task\nJudge ONLY the sources the agent actually cited together in support of the core claim (not the whole retrieved pool). Determine whether at least two of them are genuinely independent.\n\n## How to judge — trace the EVIDENCE ROOT, not the outlet\nIndependence is about provenance, not about how many different websites/organizations appear. For each cited source, ask: \"Where does THIS source's support for the core claim ultimately come from?\" — that is its EVIDENCE ROOT. Group the cited sources by evidence root, then judge.\n\n## Same evidence root → NOT independent\n- One is a repost/syndication of the other, or both republish the same press release / datasheet / newswire.\n- One merely paraphrases the other without any independent fact-gathering.\n- Multiple channels of the same organization, or multiple queries against the same underlying dataset.\n- Textual signals: verbatim/near-verbatim overlap, identical specific numbers or quotes, explicit attribution to the same upstream (e.g. \"according to AP\", \"per the company statement\").\n\n## Different evidence roots → independent\n- Support derives from SEPARATE evidence-generating acts: different first-hand reporting/interviews, different experiments/measurements, or different datasets.\n- Same underlying event but separate first-hand gathering still counts as independent (each can cross-check the other).\n- An original report PLUS a genuinely independent analysis that adds its own verification (not mere paraphrase).\n- NOTE: an aggregator / \"multiple outlets report\" summary contributes no evidence root of its own; count it under whatever upstream it summarizes.\n\n## Pass Criteria\nThe cited sources span at least 2 DISTINCT evidence roots.\n\n## Fail Criteria\nAll cited sources collapse to a single evidence root, constituting redundancy rather than true multi-source corroboration.\n\n## Input\n\n### User Question\n{user_question}\n\n### Retrieved Source Documents\n{retrieved_sources}\n\n### Agent Final Answer\n{final_answer}\n\n## Output Format\nIMPORTANT: Commit to your verdict before writing the reason. The `verdict` field must appear first in the JSON. Write `reason` as a concise post-verdict explanation (1-3 sentences), not as a chain of reasoning that leads to the verdict.\nRespond with ONLY the following JSON object, no additional text:\n```json\n{{\n  \"verdict\": \"pass\" or \"fail\",\n  \"reason\": \"Brief explanation of your judgment (1-3 sentences)\",\n  \"evidence_roots\": [{{\"root\": \"short label of the originating evidence\", \"cited_docs\": [\"doc numbers grouped under this root\"]}}],\n  \"distinct_root_count\": <integer number of distinct evidence roots among the cited sources>,\n  \"independent_sources\": [\"List sources judged to be genuinely independent\"],\n  \"redundant_sources\": [\"List sources judged to be redundant/non-independent, with brief reason\"]\n}}\n```",
+      "routing": {
+        "pass": "L4",
+        "fail": "STOP"
+      }
+    },
+    {
+      "id": "L4",
+      "label": 4,
+      "name": "Conflict Detection",
+      "description": "Do the retrieved sources contain substantive conflicts/contradictions on the core claim? And did the agent correctly recognize this? If conflicts exist but the agent completely ignored them (source blending), stop at L4; otherwise route to the appropriate L5 branch.",
+      "type": "routing_with_fail",
+      "prompt_template": "You are an expert information quality evaluator assessing search agent trajectories.\n\n## Task\nComplete two assessments:\n1. **Source status**: Do the retrieved sources contain substantive conflicts or contradictions regarding the core claim? (e.g., differing numerical values, conflicting timelines, contradictory facts, definition disagreements, opposing stances)\n2. **Agent handling**: Did the agent correctly recognize and reflect this status in its answer?\n\n## What Constitutes a Substantive Conflict\n- Sources directly contradict each other on a core fact (e.g., one says approved, another says not approved)\n- Key quantitative information (numbers, dates, ranges) differs significantly across sources\n- Sources take clearly opposing stances or conclusions (beyond mere detail differences)\n\n## What Does NOT Constitute a Substantive Conflict\n- One source is more detailed than another (granularity difference)\n- Different phrasing pointing to the same underlying fact\n- Complementary information (sources add different but compatible details)\n\n## Three Possible Verdicts\n- **consistent**: No substantive conflict exists among the sources, AND the agent correctly treated them as consistent in its answer.\n- **conflict_identified**: Substantive conflicts exist, AND the agent explicitly acknowledged or mentioned the conflict in its reasoning or answer (even if attribution is incomplete).\n- **conflict_missed**: Substantive conflicts exist, BUT the agent completely ignored them, blending all sources into a single conclusion without any qualification or acknowledgment (source blending).\n\n## Input\n\n### User Question\n{user_question}\n\n### Retrieved Source Documents\n{retrieved_sources}\n\n### Agent Final Answer\n{final_answer}\n\n## Output Format\nIMPORTANT: Commit to your verdict before writing the reason. The `verdict` field must appear first in the JSON. Write `reason` as a concise post-verdict explanation (1-3 sentences), not as a chain of reasoning that leads to the verdict.\nRespond with ONLY the following JSON object, no additional text:\n```json\n{{\n  \"verdict\": \"consistent\" or \"conflict_identified\" or \"conflict_missed\",\n  \"source_conflicts\": \"Describe any substantive conflicts found (or write no substantive conflict if none)\",\n  \"agent_handling\": \"Describe how the agent handled source consistency/conflict in its answer\",\n  \"reason\": \"Overall explanation of your judgment (1-3 sentences)\"\n}}\n```",
+      "routing": {
+        "consistent": "L5_consensus",
+        "conflict_identified": "L5_conflict",
+        "conflict_missed": "STOP"
+      }
+    },
+    {
+      "id": "L5_consensus",
+      "label": 5,
+      "name": "Consensus Aggregation Quality",
+      "description": "Given that the sources consistently support the claim, did the agent correctly aggregate them — preserving key scope conditions, definitions, and qualifications without overclaiming or underclaiming?",
+      "type": "binary",
+      "prompt_template": "You are an expert information quality evaluator assessing search agent trajectories.\n\n## Context\nIt has already been determined that the sources cited by the agent are substantially consistent in their support of the core claim (no substantive conflict).\n\n## Task\nDetermine whether the agent correctly aggregated those consistent sources — accurately preserving the key constraints and qualifications from the original sources, without introducing the following types of aggregation errors:\n\n## Aggregation Error Types\n**Overclaim (scope expansion)**:\n- Expanding a limited scope to a broader one (e.g., sources say early-stage, agent says all patients)\n- Treating accelerated approval as full/definitive approval\n- Generalizing a regionally-specific fact to a global one\n- Stating something unconditionally when sources only support it conditionally\n\n**Underclaim (scope contraction)**:\n- Adding unnecessary uncertainty to well-evidenced facts\n- Artificially narrowing the scope beyond what sources support\n\n**Framing / calibration error**:\n- Conflating different regulatory or technical terms (e.g., clinical trial success vs. regulatory approval)\n- Presenting a predictive/speculative statement as a confirmed fact\n\n## Pass Criteria\nThe agent's aggregated conclusion aligns with the key constraints in the sources (scope, definitions, degree). Reasonable simplifications in wording are acceptable as long as the core framing is accurate.\n\n## Fail Criteria\nThe agent introduced a material deviation from key source constraints during aggregation (overclaim, underclaim, or framing error).\n\n## Input\n\n### User Question\n{user_question}\n\n### Retrieved Source Documents\n{retrieved_sources}\n\n### Agent Final Answer\n{final_answer}\n\n## Output Format\nIMPORTANT: Commit to your verdict before writing the reason. The `verdict` field must appear first in the JSON. Write `reason` as a concise post-verdict explanation (1-3 sentences), not as a chain of reasoning that leads to the verdict.\nRespond with ONLY the following JSON object, no additional text:\n```json\n{{\n  \"verdict\": \"pass\" or \"fail\",\n  \"reason\": \"Brief explanation of your judgment (1-3 sentences)\",\n  \"aggregation_issues\": \"If fail: describe the specific aggregation error with evidence from the text. If pass: write aggregation quality acceptable.\",\n  \"key_scope_conditions\": \"List 1-3 most important scope/qualification conditions found in the sources for the core claim\"\n}}\n```",
+      "routing": {
+        "pass": "L6",
+        "fail": "STOP"
+      }
+    },
+    {
+      "id": "L5_conflict",
+      "label": 5,
+      "name": "Conflict Attribution Quality",
+      "description": "Given that sources contain conflicts which the agent acknowledged, did the agent perform proper source-level attribution — clearly stating which source supports which position — rather than vaguely noting disagreement?",
+      "type": "binary",
+      "prompt_template": "You are an expert information quality evaluator assessing search agent trajectories.\n\n## Context\nIt has already been determined that the sources contain substantive conflicts, and the agent acknowledged the existence of a conflict to some degree.\n\n## Task\nDetermine whether the agent performed adequate source-level attribution — explicitly stating which specific source supports which specific position, rather than merely noting that information is inconsistent.\n\n## High-quality Attribution (pass examples)\n- Source S1 (FDA approval letter) states Drug Y is approved for early-stage use; Source S4 (health blog, older article) states it has not been approved yet.\n- Source A supports position X; Source B supports position Y. The discrepancy stems from... and may be explained by...\n\n## Low-quality Attribution (fail examples)\n- Information online is inconsistent, but it seems like it has been approved. (No source-level attribution of which source says what)\n- Some sources say yes, others say no. (Formally acknowledges conflict but no specific source attribution)\n- Using contradictory sources in different paragraphs without acknowledging their contradiction.\n\n## Pass Criteria\nThe agent explicitly identifies at least two conflicting sources and states which specific position each supports, with some description of the nature of the conflict.\n\n## Fail Criteria\nThe agent only makes a surface-level acknowledgment of disagreement without source-level attribution, or implicitly blends conflicting sources without flagging the contradiction.\n\n## Input\n\n### User Question\n{user_question}\n\n### Retrieved Source Documents\n{retrieved_sources}\n\n### Agent Final Answer\n{final_answer}\n\n## Output Format\nIMPORTANT: Commit to your verdict before writing the reason. The `verdict` field must appear first in the JSON. Write `reason` as a concise post-verdict explanation (1-3 sentences), not as a chain of reasoning that leads to the verdict.\nRespond with ONLY the following JSON object, no additional text:\n```json\n{{\n  \"verdict\": \"pass\" or \"fail\",\n  \"reason\": \"Brief explanation of your judgment (1-3 sentences)\",\n  \"conflict_points\": \"Describe the main conflict points found across sources\",\n  \"attribution_quality\": \"Evaluate the agent attribution quality: which sources and positions were named, and whether source-level attribution was achieved\"\n}}\n```",
+      "routing": {
+        "pass": "L6",
+        "fail": "STOP"
+      }
+    },
+    {
+      "id": "L6",
+      "label": 6,
+      "name": "Adjudication Quality",
+      "description": "Did the agent make a well-reasoned adjudication based on source authority, recency, framing alignment, and evidence type? Or, when evidence is insufficient, did it honestly acknowledge its inability to adjudicate? This layer also checks whether the agent correctly weights source quality in the consensus case.",
+      "type": "binary",
+      "prompt_template": "You are an expert information quality evaluator assessing search agent trajectories.\n\n## Task\nDetermine whether the agent made sound evidence-weighting decisions based on source quality dimensions (authority, recency, framing alignment, evidence type). This applies to two main scenarios:\n\n## Scenario A: Conflicting Sources — Assess Adjudication Quality\nThe agent should adjudicate based on:\n- **Authority**: Official regulatory documents > independent research institutions > credible media > corporate communications > personal blogs\n- **Recency**: More recent information is generally more accurate for fast-changing facts; clearly outdated sources should be deprioritized\n- **Framing alignment**: Does the source's concept/terminology match the claim being supported?\n- **Evidence type**: Directly confirmatory sources > predictive/speculative sources\n\n**Pass — Correct adjudication**: Agent explicitly names the source it defers to and provides a principled reason (e.g., the FDA approval letter is the most authoritative and most recent; the older blog post predates the approval decision).\n\n**Pass — Honest non-adjudication**: Agent clearly states it cannot adjudicate due to insufficient high-quality evidence, names what is missing, and does not assert a high-confidence conclusion.\n\n**Fail — Unsupported adjudication**: Agent issues a high-confidence conclusion based on low-authority sources when no authoritative source was retrieved; ignores clear recency differences; or states a definitive conclusion in a high-stakes domain (medical, legal) without adequate evidence.\n\n## Scenario B: Consistent Sources — Assess Source Quality Weighting\n**Pass**: Agent correctly weights high-quality sources; confidence level is proportionate to evidence quality; low-quality sources do not dilute a high-quality consensus.\n\n**Fail**: Low-quality sources dilute a high-quality consensus; agent is over-cautious about well-evidenced facts; or agent is overconfident about poorly evidenced inferences.\n\n## Input\n\n### User Question\n{user_question}\n\n### Retrieved Source Documents\n{retrieved_sources}\n\n### Agent Final Answer\n{final_answer}\n\n## Output Format\nIMPORTANT: Commit to your verdict before writing the reason. The `verdict` field must appear first in the JSON. Write `reason` as a concise post-verdict explanation (1-3 sentences), not as a chain of reasoning that leads to the verdict.\nRespond with ONLY the following JSON object, no additional text:\n```json\n{{\n  \"verdict\": \"pass\" or \"fail\",\n  \"scenario\": \"conflict_adjudication\" or \"consensus_quality_weighting\",\n  \"reason\": \"Brief explanation of your judgment (1-3 sentences)\",\n  \"adjudication_analysis\": \"Describe how the agent adjudicated or weighted sources, and whether it was principled\",\n  \"issues\": \"If fail: describe the specific adjudication problem (e.g., overconfidence, ignoring recency, dilution by low-quality source). If pass: write adjudication quality acceptable.\"\n}}\n```",
+      "routing": {
+        "pass": "DONE",
+        "fail": "STOP"
+      }
+    }
+  ],
+  "pipeline": {
+    "entry_point": "L1",
+    "label_mapping": {
+      "L1_fail": 1,
+      "L2_fail": 2,
+      "L3_fail": 3,
+      "L4_conflict_missed": 4,
+      "L5_consensus_fail": 5,
+      "L5_conflict_fail": 5,
+      "L6_fail": 6,
+      "L6_pass": 7
+    },
+    "label_descriptions": {
+      "1": "No citation support: core claims lack any relevant source backing",
+      "2": "Single-source: claim supported by only one source, no multi-source verification",
+      "3": "Redundant multi-source: multiple sources cited but all trace to the same origin",
+      "4": "Conflict blindness: sources contain real conflicts but agent completely missed them (source blending)",
+      "5": "Aggregation/attribution defect: consistency/conflict detected, but aggregation introduced framing errors or conflict attribution was insufficient",
+      "6": "Deficient adjudication: reached L6 but adjudication was unsupported, overconfident, or incorrectly weighted",
+      "7": "Full pass: all six layers cleared — correct citation, multi-source, independence, conflict handling, aggregation/attribution, and adjudication"
+    }
+  }
+}

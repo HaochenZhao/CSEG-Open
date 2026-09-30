@@ -1,0 +1,24 @@
+# Load-bearing pins for CSEG-RM SFT + GRPO + CSEG-Bench.
+# Install into a GPU environment that already provides a matching CUDA toolkit.
+
+verl==0.8.0
+vllm==0.11.0
+
+# Transitive runtime (listed so a bare venv can resolve them).
+torch
+transformers
+ray
+flash-attn
+hydra-core>=1.3
+omegaconf>=2.3
+datasets
+numpy
+pyarrow
+
+# Trajectory scorer + benchmark (OpenAI-compatible HTTP).
+openai
+python-dotenv
+pyyaml
+
+# scripts/download_hf.sh (`hf` CLI).
+huggingface_hub>=0.34

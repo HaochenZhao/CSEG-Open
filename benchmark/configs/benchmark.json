@@ -1,0 +1,32 @@
+{
+  "description": "Default CSEG-Bench configuration. CLI flags override these values.",
+  "eval_set": "./eval.jsonl",
+  "judge_config": "../data_filter/prompt_config.json",
+  "prompt_output_spec": "full",
+  "gold_source": "target",
+  "output_dir": "results",
+  "probs": false,
+  "models": [
+    "qwen3-4b-sft-grpo"
+  ],
+  "model_options": {
+    "qwen3-4b-sft-grpo": {
+      "chat_template_kwargs": { "enable_thinking": true }
+    },
+    "qwen3-8b-sft-grpo": {
+      "chat_template_kwargs": { "enable_thinking": true }
+    },
+    "qwen3-4b-sft": {
+      "chat_template_kwargs": { "enable_thinking": true }
+    },
+    "qwen3-8b-sft": {
+      "chat_template_kwargs": { "enable_thinking": true }
+    },
+    "qwen3-4b-base": {
+      "chat_template_kwargs": { "enable_thinking": true }
+    },
+    "qwen3-8b-base": {
+      "chat_template_kwargs": { "enable_thinking": true }
+    }
+  }
+}
