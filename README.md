@@ -1,31 +1,56 @@
 # CSEG: Cross-Source Evidence Grounding
 
-Training and evaluation code for **CSEG-RM**, a six-layer judge that checks
+**English** | [中文](README_CN.md)
+
+![arXiv](https://img.shields.io/badge/arXiv-2610.17827-b31b1b.svg)
+![Paper](https://img.shields.io/badge/Paper-PDF-red.svg)
+![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97_Hugging_Face-CSEG--RM-yellow)
+
+Official training and evaluation code for **CSEG-RM**, a six-layer judge that checks
 whether a search agent's answer is grounded in, and correctly reconciles,
 evidence from multiple retrieved sources, and for **CSEG-Bench**, the
 1,160-example benchmark used to evaluate it.
 
-<!-- TODO: paper link, authors, venue -->
-Paper: _coming soon_ ·
-Models & data: [Hugging Face collection](https://huggingface.co/collections/VectorZhao/cseg-rm)
+**Paper:** [Benchmarking and Training Reward Models for Cross-Source Evidence Grounding in Search Agents](https://arxiv.org/abs/2610.17827) ([PDF](https://arxiv.org/pdf/2610.17827))
 
-Seed trajectories come from a large commercial search assistant. Its
-proprietary chat template and tool protocol are not needed to train or
-evaluate CSEG-RM. CSEG-Bench `messages` drop the original `role=system`
+Haochen Zhao1\*, Minsheng Hao2, Zheng Li1, Yifan Li3, Zikang Liu3, Bowen Qin2, Yuhao Cheng2, Chuang Fan2, Haosheng Zou2, Jeff Chen2†, Sujian Li1‡
+
+1 Peking University &emsp; 2 Tencent &emsp; 3 Renmin University of China
+
+\* Work done during internship at Tencent. &emsp; † Project lead. &emsp; ‡ Corresponding author.
+
+**Links:** [arXiv](https://arxiv.org/abs/2610.17827) · [PDF](https://arxiv.org/pdf/2610.17827) · [Hugging Face collection](https://huggingface.co/collections/VectorZhao/cseg-rm)
+
+## News
+
+- **2026-10-13:** Paper released on [arXiv](https://arxiv.org/abs/2610.17827) (`2610.17827`).
+
+
+
+## Abstract
+
+Existing approaches to training and evaluating search agents focus heavily on final-answer quality, largely neglecting how generated answers map back to retrieved evidence. Citation support alone does not establish source independence or whether an answer appropriately handles conflicting evidence. We propose **CSEG**, a six-layer decision tree over the complete search trajectory. **CSEG-Bench** contains 1,160 verified trajectories over nine canonical paths. **CSEG-RM** reaches 83.9% exact accuracy on this benchmark while lying on the performance–token efficiency Pareto frontier. Using this reward alone to supervise a frozen-retrieval answer policy raises the independently judged mean label from 2.83 to 4.19.
+
+Seed trajectories come from logged RLVR rollouts of the Tencent Yuanbao
+search assistant (see [Data source](#data-source)).
+CSEG-RM does not need the source service's proprietary chat template or
+tool protocol. CSEG-Bench `messages` drop the original `role=system`
 turn (assistant identity and tool protocol); the scorer already ignores
 that role. User / tool / assistant turns are unchanged.
 
 ## Released artifacts
 
-| Artifact | Paper row | Hugging Face |
-|---|---|---|
-| CSEG-Bench (n = 1,160) | Table 1 / Table 2 eval set | [`VectorZhao/CSEG-Bench`](https://huggingface.co/datasets/VectorZhao/CSEG-Bench) |
-| Qwen3-4B + 32B-RS SFT (`global_step_220`) | Table 1 SFT | [`VectorZhao/CSEG-RM-SFT-4B`](https://huggingface.co/VectorZhao/CSEG-RM-SFT-4B) |
-| Qwen3-8B + 32B-RS SFT (`global_step_220`) | Table 1 SFT | [`VectorZhao/CSEG-RM-SFT-8B`](https://huggingface.co/VectorZhao/CSEG-RM-SFT-8B) |
-| Qwen3-4B SFT + GRPO-400 | Table 1 SFT+GRPO (main result) | [`VectorZhao/CSEG-RM-SFT-GRPO-4B`](https://huggingface.co/VectorZhao/CSEG-RM-SFT-GRPO-4B) |
-| Qwen3-8B SFT + GRPO-400 | Table 1 SFT+GRPO | [`VectorZhao/CSEG-RM-SFT-GRPO-8B`](https://huggingface.co/VectorZhao/CSEG-RM-SFT-GRPO-8B) |
-| Qwen3-4B GRPO-400 from base | Table 2 synthesized | [`VectorZhao/CSEG-RM-GRPO-4B`](https://huggingface.co/VectorZhao/CSEG-RM-GRPO-4B) |
-| Qwen3-8B GRPO-400 from base | Table 2 synthesized | [`VectorZhao/CSEG-RM-GRPO-8B`](https://huggingface.co/VectorZhao/CSEG-RM-GRPO-8B) |
+
+| Artifact                                  | Paper row                      | Hugging Face                                                                              |
+| ----------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------- |
+| CSEG-Bench (n = 1,160)                    | Table 1 / Table 2 eval set     | `[VectorZhao/CSEG-Bench](https://huggingface.co/datasets/VectorZhao/CSEG-Bench)`          |
+| Qwen3-4B + 32B-RS SFT (`global_step_220`) | Table 1 SFT                    | `[VectorZhao/CSEG-RM-SFT-4B](https://huggingface.co/VectorZhao/CSEG-RM-SFT-4B)`           |
+| Qwen3-8B + 32B-RS SFT (`global_step_220`) | Table 1 SFT                    | `[VectorZhao/CSEG-RM-SFT-8B](https://huggingface.co/VectorZhao/CSEG-RM-SFT-8B)`           |
+| Qwen3-4B SFT + GRPO-400                   | Table 1 SFT+GRPO (main result) | `[VectorZhao/CSEG-RM-SFT-GRPO-4B](https://huggingface.co/VectorZhao/CSEG-RM-SFT-GRPO-4B)` |
+| Qwen3-8B SFT + GRPO-400                   | Table 1 SFT+GRPO               | `[VectorZhao/CSEG-RM-SFT-GRPO-8B](https://huggingface.co/VectorZhao/CSEG-RM-SFT-GRPO-8B)` |
+| Qwen3-4B GRPO-400 from base               | Table 2 synthesized            | `[VectorZhao/CSEG-RM-GRPO-4B](https://huggingface.co/VectorZhao/CSEG-RM-GRPO-4B)`         |
+| Qwen3-8B GRPO-400 from base               | Table 2 synthesized            | `[VectorZhao/CSEG-RM-GRPO-8B](https://huggingface.co/VectorZhao/CSEG-RM-GRPO-8B)`         |
+
 
 All checkpoints are bf16 Hugging Face safetensors, thinking-on, and emit the
 full JSON judgement (`--prompt-output-spec full`).
@@ -39,6 +64,8 @@ bash scripts/download_hf.sh sft-4b           # -> training/sft/ckpts/sft_qwen3_4
 bash scripts/download_hf.sh sft-grpo-4b      # -> training/ckpts/sft_grpo_qwen3_4b/global_step_400/actor/huggingface
 bash scripts/download_hf.sh all              # everything (~75 GB)
 ```
+
+
 
 ## Pipeline
 
@@ -75,27 +102,34 @@ ckpts/           checkpoint path index
 six-layer pipeline, so training reward and evaluation parse outputs
 identically.
 
-## Runtime contract (needed to train and to match the tables)
+## Key Components
 
-| Piece | File | Role |
-|---|---|---|
-| Node prompts + router | `data_filter/prompt_config.json` | Per-layer template and `routing` / `label_mapping`. The paper recipe uses the English file. |
-| Schema | `benchmark/gold.py` | `GOLD_PATHS`, `NODE_VERDICTS`, `LAYER_ORDER`. Judge JSON puts `verdict` first. |
-| Trajectory scorer | `data_filter/score_trajectory.py` | `parse_trajectory`, `score_record`, `_parse_json_from_text`. |
-| Prompt variants | `data_filter/prompt_variants.py` | `full` (paper) vs `verdict_only`. |
-| Layer reward | `training/rewards/layer_reward.py` | GRPO `compute_score`; same parser as eval. |
+
+| Piece                 | File                               | Role                                                                                        |
+| --------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------- |
+| Node prompts + router | `data_filter/prompt_config.json`   | Per-layer template and `routing` / `label_mapping`. The paper recipe uses the English file. |
+| Schema                | `benchmark/gold.py`                | `GOLD_PATHS`, `NODE_VERDICTS`, `LAYER_ORDER`. Judge JSON puts `verdict` first.              |
+| Trajectory scorer     | `data_filter/score_trajectory.py`  | `parse_trajectory`, `score_record`, `_parse_json_from_text`.                                |
+| Prompt variants       | `data_filter/prompt_variants.py`   | `full` (paper) vs `verdict_only`.                                                           |
+| Layer reward          | `training/rewards/layer_reward.py` | GRPO `compute_score`; same parser as eval.                                                  |
+
+
+
 
 ## Data files
 
-| Paper name | In this repo | Full n | Path |
-|---|---|---|---|
-| CSEG-Bench | download (`scripts/download_hf.sh bench`) | 1,160 | `benchmark/eval.jsonl` |
-| CSEG-RM SFT | subset, 75 / 14 | 14,081 / 795 | `training/sft/data/sft_{train,dev}.parquet` |
-| CSEG-RM GRPO | subset, 75 / 15 | 7,320 / 911 | `training/data/rl_{train,val}.jsonl` |
+
+| Paper name   | In this repo                              | Full n       | Path                                        |
+| ------------ | ----------------------------------------- | ------------ | ------------------------------------------- |
+| CSEG-Bench   | download (`scripts/download_hf.sh bench`) | 1,160        | `benchmark/eval.jsonl`                      |
+| CSEG-RM SFT  | subset, 75 / 14                           | 14,081 / 795 | `training/sft/data/sft_{train,dev}.parquet` |
+| CSEG-RM GRPO | subset, 75 / 15                           | 7,320 / 911  | `training/data/rl_{train,val}.jsonl`        |
+
 
 `eval.jsonl` (~118 MB) is over GitHub's file-size limit, so it is
 fetched from the Hub rather than committed. The released file already
-omits the source assistant's `role=system` turn.
+omits the source assistant's `role=system` turn and follows the
+de-identification constraints in [Data source](#data-source).
 
 The CSEG-RM train subsets are a stratified draw (seed 42): 5 rows per
 `(layer, verdict)` cell (15 cells × 5 = 75). Dev/val is 1 row per available
@@ -110,21 +144,25 @@ See `data/README.md`, `training/sft/data/README.md`, and `training/data/README.m
 
 ## Configs ↔ paper tables
 
-| Paper row | Config | Init |
-|---|---|---|
-| Table 1 · Qwen3-4B + 32B-RS SFT | `training/sft/configs/sft_qwen3_4b.yaml` | `Qwen/Qwen3-4B` |
-| Table 1 · Qwen3-8B + 32B-RS SFT | `training/sft/configs/sft_qwen3_8b.yaml` | `Qwen/Qwen3-8B` |
-| Table 1 · Qwen3-4B + SFT + GRPO-400 | `training/configs/sft_grpo_qwen3_4b.yaml` | SFT `global_step_220` |
-| Table 1 · Qwen3-8B + SFT + GRPO-400 | `training/configs/sft_grpo_qwen3_8b.yaml` | SFT `global_step_220` |
-| Table 2 · synth, from-base 4B | `training/configs/grpo_qwen3_4b.yaml` | `Qwen/Qwen3-4B` |
-| Table 2 · synth, from-base 8B | `training/configs/grpo_qwen3_8b.yaml` | `Qwen/Qwen3-8B` |
-| Table 2 · natural rollout, 4B | `training/configs/grpo_qwen3_4b_rollout.yaml` | `Qwen/Qwen3-4B` |
-| Table 2 · natural rollout, 8B | `training/configs/grpo_qwen3_8b_rollout.yaml` | `Qwen/Qwen3-8B` |
+
+| Paper row                           | Config                                        | Init                  |
+| ----------------------------------- | --------------------------------------------- | --------------------- |
+| Table 1 · Qwen3-4B + 32B-RS SFT     | `training/sft/configs/sft_qwen3_4b.yaml`      | `Qwen/Qwen3-4B`       |
+| Table 1 · Qwen3-8B + 32B-RS SFT     | `training/sft/configs/sft_qwen3_8b.yaml`      | `Qwen/Qwen3-8B`       |
+| Table 1 · Qwen3-4B + SFT + GRPO-400 | `training/configs/sft_grpo_qwen3_4b.yaml`     | SFT `global_step_220` |
+| Table 1 · Qwen3-8B + SFT + GRPO-400 | `training/configs/sft_grpo_qwen3_8b.yaml`     | SFT `global_step_220` |
+| Table 2 · synth, from-base 4B       | `training/configs/grpo_qwen3_4b.yaml`         | `Qwen/Qwen3-4B`       |
+| Table 2 · synth, from-base 8B       | `training/configs/grpo_qwen3_8b.yaml`         | `Qwen/Qwen3-8B`       |
+| Table 2 · natural rollout, 4B       | `training/configs/grpo_qwen3_4b_rollout.yaml` | `Qwen/Qwen3-4B`       |
+| Table 2 · natural rollout, 8B       | `training/configs/grpo_qwen3_8b_rollout.yaml` | `Qwen/Qwen3-8B`       |
+
 
 Checkpoint directories (same paths as `scripts/download_hf.sh`):
 
 - `training/sft/ckpts/sft_qwen3_{4b,8b}_32b_rs/global_step_220/huggingface`
 - `training/ckpts/<config-name>/global_step_400/actor/huggingface`
+
+
 
 ## Environment
 
@@ -192,31 +230,7 @@ cd training
 CKPT_ROOT=./ckpts/sft_grpo_qwen3_4b bash scripts/merge_fsdp_ckpts.sh global_step_400
 ```
 
-## Smoke tests
 
-These run on the shipped subsets in a few minutes and check that every stage
-starts, steps, saves, and merges. They are not table runs.
-
-```bash
-# SFT: one step on 8 GPUs, checkpoint to local disk
-cd training/sft
-FOREGROUND=1 bash scripts/launch_sft.sh sft_qwen3_4b \
-    trainer.total_epochs=1 trainer.default_local_dir=/tmp/cseg_smoke/sft_qwen3_4b
-
-# GRPO: two steps, no checkpoints, no validation
-cd training
-bash ../scripts/download_hf.sh sft-4b
-CALIB=2 FOREGROUND=1 bash scripts/launch_grpo.sh sft_grpo_qwen3_4b trainer.nnodes=1
-
-# CSEG-Bench: first 20 records against a served checkpoint
-cd benchmark
-python run_benchmark.py --model qwen3-4b-sft-grpo --limit 20
-```
-
-On the 14-row SFT dev subset, `val/loss` is logged as `nan`: verl's SFT
-validation loader drops incomplete batches of `train_batch_size / n_gpus`
-rows per rank, so each rank sees no validation batch. The full dev split
-does not have this problem.
 
 ## Evaluate (Table 1 / Table 2)
 
@@ -241,18 +255,38 @@ python run_benchmark.py \
 Headline metrics exclude type `L6_fail_consensus` (same exclusion as CSEG-RM
 training). Gold is `target_label` / `GOLD_PATHS[type]`.
 
-## Not included
+## Data source
 
-- Full CSEG-RM train/dev splits (only the stratified subsets above)
-- Data-source ablation jsonl
-- 32B teacher sampling that produced the SFT parquet
-- Dataset *construction* code (synthesis, flattening, balancing)
-- Downstream end-policy agent RL
-- Cluster-specific job scripts
+Following the paper [Ethics Statement](https://arxiv.org/abs/2610.17827):
+
+Seed trajectories come from the Tencent Yuanbao search assistant. Users
+whose trajectories are included consented to research use through a
+dedicated user experience program. The public release removes direct
+identifiers and sensitive content, minimizes query-text exposure, and
+uses retrieved pages under their governing licenses and terms. CSEG-Bench
+`messages` drop `role=system` (assistant identity and tool protocol);
+CSEG-RM does not need the source service's proprietary chat template.
+Documents injected during construction exist only inside the controlled
+benchmark environment and are not presented as genuine web documents
+outside that setting.
 
 ## Citation
 
-<!-- TODO: BibTeX -->
+If you use CSEG, CSEG-Bench, or CSEG-RM, please cite:
+
+```bibtex
+@misc{zhao2026benchmarkingtrainingrewardmodels,
+  title={Benchmarking and Training Reward Models for Cross-Source Evidence Grounding in Search Agents},
+  author={Haochen Zhao and Minsheng Hao and Zheng Li and Yifan Li and Zikang Liu and Bowen Qin and Yuhao Cheng and Chuang Fan and Haosheng Zou and Jeff Chen and Sujian Li},
+  year={2026},
+  eprint={2610.17827},
+  archivePrefix={arXiv},
+  primaryClass={cs.AI},
+  url={https://arxiv.org/abs/2610.17827},
+}
+```
+
+
 
 ## License
 
