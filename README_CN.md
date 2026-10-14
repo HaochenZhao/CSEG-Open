@@ -2,9 +2,9 @@
 
 [English](README.md) | **中文**
 
-![arXiv](https://img.shields.io/badge/arXiv-2610.17827-b31b1b.svg)
-![Paper](https://img.shields.io/badge/Paper-PDF-red.svg)
-![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97_Hugging_Face-CSEG--RM-yellow)
+[![arXiv](https://img.shields.io/badge/arXiv-2610.17827-b31b1b.svg)](https://arxiv.org/abs/2610.17827)
+[![Paper](https://img.shields.io/badge/Paper-PDF-red.svg)](https://arxiv.org/pdf/2610.17827)
+[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97_Hugging_Face-CSEG--RM-yellow)](https://huggingface.co/collections/VectorZhao/cseg-rm)
 
 本仓库是 **CSEG-RM** 与 **CSEG-Bench** 的官方训练与评测代码。CSEG-RM 是一个六层判定器，用于检查搜索智能体的回答是否锚定于、并正确调和多份检索来源中的证据；CSEG-Bench 是用于评测它的 1,160 条轨迹基准。
 
@@ -16,7 +16,7 @@ Haochen Zhao1\*、Minsheng Hao2、Zheng Li1、Yifan Li3、Zikang Liu3、Bowen Qi
 
 \* 腾讯实习期间完成。 &emsp; † 项目负责人。 &emsp; ‡ 通讯作者。
 
-**链接：** [arXiv](https://arxiv.org/abs/2610.17827) · [PDF](https://arxiv.org/pdf/2610.17827) · [Hugging Face 合集](https://huggingface.co/collections/VectorZhao/cseg-rm)
+**链接：** [arXiv](https://arxiv.org/abs/2610.17827) · [PDF](https://arxiv.org/pdf/2610.17827) · [Hugging Face](https://huggingface.co/VectorZhao)
 
 ## 动态
 
@@ -31,15 +31,15 @@ Haochen Zhao1\*、Minsheng Hao2、Zheng Li1、Yifan Li3、Zikang Liu3、Bowen Qi
 ## 已发布资源
 
 
-| 资源                                       | 论文对应行                 | Hugging Face                                                                              |
-| ---------------------------------------- | --------------------- | ----------------------------------------------------------------------------------------- |
-| CSEG-Bench（n = 1,160）                    | Table 1 / Table 2 评测集 | `[VectorZhao/CSEG-Bench](https://huggingface.co/datasets/VectorZhao/CSEG-Bench)`          |
-| Qwen3-4B + 32B-RS SFT（`global_step_220`） | Table 1 SFT           | `[VectorZhao/CSEG-RM-SFT-4B](https://huggingface.co/VectorZhao/CSEG-RM-SFT-4B)`           |
-| Qwen3-8B + 32B-RS SFT（`global_step_220`） | Table 1 SFT           | `[VectorZhao/CSEG-RM-SFT-8B](https://huggingface.co/VectorZhao/CSEG-RM-SFT-8B)`           |
-| Qwen3-4B SFT + GRPO-400                  | Table 1 SFT+GRPO（主结果） | `[VectorZhao/CSEG-RM-SFT-GRPO-4B](https://huggingface.co/VectorZhao/CSEG-RM-SFT-GRPO-4B)` |
-| Qwen3-8B SFT + GRPO-400                  | Table 1 SFT+GRPO      | `[VectorZhao/CSEG-RM-SFT-GRPO-8B](https://huggingface.co/VectorZhao/CSEG-RM-SFT-GRPO-8B)` |
-| Qwen3-4B 从基座 GRPO-400                    | Table 2 合成数据          | `[VectorZhao/CSEG-RM-GRPO-4B](https://huggingface.co/VectorZhao/CSEG-RM-GRPO-4B)`         |
-| Qwen3-8B 从基座 GRPO-400                    | Table 2 合成数据          | `[VectorZhao/CSEG-RM-GRPO-8B](https://huggingface.co/VectorZhao/CSEG-RM-GRPO-8B)`         |
+| 资源 | 论文对应行 | Hugging Face |
+|---|---|---|
+| CSEG-Bench（n = 1,160） | Table 1 / Table 2 评测集 | [`VectorZhao/CSEG-Bench`](https://huggingface.co/datasets/VectorZhao/CSEG-Bench) |
+| Qwen3-4B + 32B-RS SFT（`global_step_220`） | Table 1 SFT | [`VectorZhao/CSEG-RM-SFT-4B`](https://huggingface.co/VectorZhao/CSEG-RM-SFT-4B) |
+| Qwen3-8B + 32B-RS SFT（`global_step_220`） | Table 1 SFT | [`VectorZhao/CSEG-RM-SFT-8B`](https://huggingface.co/VectorZhao/CSEG-RM-SFT-8B) |
+| Qwen3-4B SFT + GRPO-400 | Table 1 SFT+GRPO（主结果） | [`VectorZhao/CSEG-RM-SFT-GRPO-4B`](https://huggingface.co/VectorZhao/CSEG-RM-SFT-GRPO-4B) |
+| Qwen3-8B SFT + GRPO-400 | Table 1 SFT+GRPO | [`VectorZhao/CSEG-RM-SFT-GRPO-8B`](https://huggingface.co/VectorZhao/CSEG-RM-SFT-GRPO-8B) |
+| Qwen3-4B 从基座 GRPO-400 | Table 2 合成数据 | [`VectorZhao/CSEG-RM-GRPO-4B`](https://huggingface.co/VectorZhao/CSEG-RM-GRPO-4B) |
+| Qwen3-8B 从基座 GRPO-400 | Table 2 合成数据 | [`VectorZhao/CSEG-RM-GRPO-8B`](https://huggingface.co/VectorZhao/CSEG-RM-GRPO-8B) |
 
 
 全部 checkpoint 为 bf16 Hugging Face safetensors，开启 thinking，并输出完整 JSON 判定（`--prompt-output-spec full`）。

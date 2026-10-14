@@ -2,9 +2,9 @@
 
 **English** | [中文](README_CN.md)
 
-![arXiv](https://img.shields.io/badge/arXiv-2610.17827-b31b1b.svg)
-![Paper](https://img.shields.io/badge/Paper-PDF-red.svg)
-![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97_Hugging_Face-CSEG--RM-yellow)
+[![arXiv](https://img.shields.io/badge/arXiv-2610.17827-b31b1b.svg)](https://arxiv.org/abs/2610.17827)
+[![Paper](https://img.shields.io/badge/Paper-PDF-red.svg)](https://arxiv.org/pdf/2610.17827)
+[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97_Hugging_Face-CSEG--RM-yellow)](https://huggingface.co/collections/VectorZhao/cseg-rm)
 
 Official training and evaluation code for **CSEG-RM**, a six-layer judge that checks
 whether a search agent's answer is grounded in, and correctly reconciles,
@@ -19,7 +19,7 @@ Haochen Zhao1\*, Minsheng Hao2, Zheng Li1, Yifan Li3, Zikang Liu3, Bowen Qin2, Y
 
 \* Work done during internship at Tencent. &emsp; † Project lead. &emsp; ‡ Corresponding author.
 
-**Links:** [arXiv](https://arxiv.org/abs/2610.17827) · [PDF](https://arxiv.org/pdf/2610.17827) · [Hugging Face collection](https://huggingface.co/collections/VectorZhao/cseg-rm)
+**Links:** [arXiv](https://arxiv.org/abs/2610.17827) · [PDF](https://arxiv.org/pdf/2610.17827) · [Hugging Face](https://huggingface.co/VectorZhao)
 
 ## News
 
@@ -41,15 +41,15 @@ that role. User / tool / assistant turns are unchanged.
 ## Released artifacts
 
 
-| Artifact                                  | Paper row                      | Hugging Face                                                                              |
-| ----------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------- |
-| CSEG-Bench (n = 1,160)                    | Table 1 / Table 2 eval set     | `[VectorZhao/CSEG-Bench](https://huggingface.co/datasets/VectorZhao/CSEG-Bench)`          |
-| Qwen3-4B + 32B-RS SFT (`global_step_220`) | Table 1 SFT                    | `[VectorZhao/CSEG-RM-SFT-4B](https://huggingface.co/VectorZhao/CSEG-RM-SFT-4B)`           |
-| Qwen3-8B + 32B-RS SFT (`global_step_220`) | Table 1 SFT                    | `[VectorZhao/CSEG-RM-SFT-8B](https://huggingface.co/VectorZhao/CSEG-RM-SFT-8B)`           |
-| Qwen3-4B SFT + GRPO-400                   | Table 1 SFT+GRPO (main result) | `[VectorZhao/CSEG-RM-SFT-GRPO-4B](https://huggingface.co/VectorZhao/CSEG-RM-SFT-GRPO-4B)` |
-| Qwen3-8B SFT + GRPO-400                   | Table 1 SFT+GRPO               | `[VectorZhao/CSEG-RM-SFT-GRPO-8B](https://huggingface.co/VectorZhao/CSEG-RM-SFT-GRPO-8B)` |
-| Qwen3-4B GRPO-400 from base               | Table 2 synthesized            | `[VectorZhao/CSEG-RM-GRPO-4B](https://huggingface.co/VectorZhao/CSEG-RM-GRPO-4B)`         |
-| Qwen3-8B GRPO-400 from base               | Table 2 synthesized            | `[VectorZhao/CSEG-RM-GRPO-8B](https://huggingface.co/VectorZhao/CSEG-RM-GRPO-8B)`         |
+| Artifact | Paper row | Hugging Face |
+|---|---|---|
+| CSEG-Bench (n = 1,160) | Table 1 / Table 2 eval set | [`VectorZhao/CSEG-Bench`](https://huggingface.co/datasets/VectorZhao/CSEG-Bench) |
+| Qwen3-4B + 32B-RS SFT (`global_step_220`) | Table 1 SFT | [`VectorZhao/CSEG-RM-SFT-4B`](https://huggingface.co/VectorZhao/CSEG-RM-SFT-4B) |
+| Qwen3-8B + 32B-RS SFT (`global_step_220`) | Table 1 SFT | [`VectorZhao/CSEG-RM-SFT-8B`](https://huggingface.co/VectorZhao/CSEG-RM-SFT-8B) |
+| Qwen3-4B SFT + GRPO-400 | Table 1 SFT+GRPO (main result) | [`VectorZhao/CSEG-RM-SFT-GRPO-4B`](https://huggingface.co/VectorZhao/CSEG-RM-SFT-GRPO-4B) |
+| Qwen3-8B SFT + GRPO-400 | Table 1 SFT+GRPO | [`VectorZhao/CSEG-RM-SFT-GRPO-8B`](https://huggingface.co/VectorZhao/CSEG-RM-SFT-GRPO-8B) |
+| Qwen3-4B GRPO-400 from base | Table 2 synthesized | [`VectorZhao/CSEG-RM-GRPO-4B`](https://huggingface.co/VectorZhao/CSEG-RM-GRPO-4B) |
+| Qwen3-8B GRPO-400 from base | Table 2 synthesized | [`VectorZhao/CSEG-RM-GRPO-8B`](https://huggingface.co/VectorZhao/CSEG-RM-GRPO-8B) |
 
 
 All checkpoints are bf16 Hugging Face safetensors, thinking-on, and emit the
